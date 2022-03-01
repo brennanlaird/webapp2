@@ -4,13 +4,19 @@ import yfinance as yf
 import json
 import plotly
 import plotly.graph_objects as go
+import pandas_ta as ta
 import warnings
+from statsmodels.tsa.arima.model import ARIMA
+
+from tqdm import tqdm
+
 warnings.filterwarnings("ignore")
-
-
 
 app = Flask(__name__)
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
+
+# Initialize an empy data frame outside functions
+price_data = pd.DataFrame()
 
 
 # @ is a decorator - a way to wrap a function and modify its behavior
@@ -26,7 +32,7 @@ def index():
 @app.route('/get_data', methods=['GET', 'POST'])
 def get_data():
     ticker = request.form['stock']
-
+    global price_data
     stock_obj = yf.Ticker(ticker)
     price_data = stock_obj.history(period='1y')
     price_data = price_data.drop('Dividends', 1)
@@ -162,8 +168,69 @@ def get_data():
 
     # print(price_data.head())
     # print(price_data.info())
-    return render_template("index.html", ticker=ticker, stock_list=stock_list, priceJSON=priceJSON, volJSON=volJSON, maJSON=maJSON)
+    return render_template("index.html", ticker=ticker, stock_list=stock_list, priceJSON=priceJSON, volJSON=volJSON,
+                           maJSON=maJSON)
+
+
+@app.route('/predict', methods=['GET', 'POST'])
+def predict():
+    ml_text = "Model results display here"
+    global price_data
+    # Adds the exponential moving average to the data set and then truncates
+    price_data.ta.ema(close='Close', length=10, append=True)
+    price_data_trunc = price_data.iloc[10:]
+
+    predictions = []
+    history = price_data_trunc[0:len(price_data_trunc)]
+
+    # Puts the EMA prices into a list
+    history = [i for i in price_data_trunc['EMA_10']]
+
+    # Puts the history into a dataframe
+    history_df = pd.DataFrame(history)
+
+    # Create a 30 day rolling forecat
+    for i in tqdm(range(30)):
+        # Runs and fits the ARIMA model with the specified order
+        model = ARIMA(history, order=(2, 1, 3))
+        model_fit = model.fit()
+
+        # Uses the forecast method to predict a single future timestep
+        next_forecast = model_fit.forecast()
+
+        # Gets the value of the next prediction
+        next_pred = next_forecast[0]
+
+        # pd.concat(history,next_forecast)
+        history.append(next_pred)
+        predictions.append(next_pred)
+
+        print("Loop ", i, " prediction : ", next_pred)
+
+    # print(price_data.head())
+    # print(price_data.info())
+    #
+    # print(price_data_trunc.head())
+    #print(price_data_trunc.info())
+
+    pred_df = pd.DataFrame(predictions)
+    pred_df.index = pred_df.index + len(history) - 30
+
+    # Setting up the moving average figure
+    pred_fig = go.Figure()
+
+    pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
+    pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
+
+    title = "30-Day Price Forecast"
+    pred_fig.update_layout(title_text=title)
+    predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
+    return render_template("index.html", ml_text=ml_text, predJSON=predJSON)
 
 
 if __name__ == '__main__':
     app.run()
+
+
+def store_data():
+    return ()

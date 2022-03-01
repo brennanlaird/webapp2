@@ -22,8 +22,8 @@
 </select>
 
 <button type="submit" class = "get_data" onclick="function show_function() {
-    var x = document.getElementById("ml_zone");
-      if (x.style.display === "none") {
+    var x = document.getElementById(ml_zone);
+      if (x.style.display = "none") {
     x.style.display = "block";
   } else {
     x.style.display = "none";
@@ -48,7 +48,16 @@
 <div id='ma_chart' class='chart'”></div>
 
 <div id="ml_zone" >
+    <form action="/predict" method="post">
     <button type="submit" class = "predict">Run Prediction</button>
+    </form>
+    </br>
+    {% if ml_text %}
+    <h2>{{ml_text}}</h2>
+    {%endif%}
+
+    <div id='pred_chart' class='chart'”></div>
+
 </div>
 
 
@@ -75,7 +84,11 @@
   Plotly.plot('ma_chart',graphs,{});
 </script>
 
-
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var graphs = {{ predJSON | safe }};
+  Plotly.plot('pred_chart',graphs,{});
+</script>
 
 
 
