@@ -30,14 +30,32 @@
 <h2>{{ticker}}</h2>
 {%endif%}
 
-<div id='chart' class='chart'”></div>
+<div id='price_chart' class='chart'”></div>
+
+<div id='vol_chart' class='chart'”></div>
+
+<div id='ma_chart' class='chart'”></div>
 
 </body>
 
 <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
 <script type='text/javascript'>
   var graphs = {{ priceJSON | safe }};
-  Plotly.plot('chart',graphs,{});
+  Plotly.plot('price_chart',graphs,{});
 </script>
+
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var graphs = {{ volJSON | safe }};
+  Plotly.plot('vol_chart',graphs,{});
+</script>
+
+
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var graphs = {{ maJSON | safe }};
+  Plotly.plot('ma_chart',graphs,{});
+</script>
+
 
 </html>
