@@ -190,9 +190,10 @@ def predict():
     history_df = pd.DataFrame(history)
 
     # Create a 30 day rolling forecat
-    for i in tqdm(range(30)):
+    for i in tqdm(range(10)):
         # Runs and fits the ARIMA model with the specified order
-        model = ARIMA(history, order=(2, 1, 3))
+
+        model = ARIMA(history, order=(2, 0, 3))
         model_fit = model.fit()
 
         # Uses the forecast method to predict a single future timestep
@@ -205,7 +206,7 @@ def predict():
         history.append(next_pred)
         predictions.append(next_pred)
 
-        print("Loop ", i, " prediction : ", next_pred)
+        # print("Loop ", i, " prediction : ", next_pred)
 
     # print(price_data.head())
     # print(price_data.info())
