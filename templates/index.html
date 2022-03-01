@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/html">
 <head>
     <meta charset="UTF-8">
     <title>DFF Stock Prediction Tool</title>
@@ -11,7 +11,9 @@
     </div>
 
     <div style="text-align: center";>
+
 <form action="/get_data" method="post">
+
 <select name="stock">
     {% for stock in stock_list %}
         <option value="{{ stock }}" SELECTED>{{ stock }}</option>
@@ -19,9 +21,18 @@
 
 </select>
 
-<button type="submit", class = "get_data", >Get Data</button>
+<button type="submit" class = "get_data" onclick="function show_function() {
+    var x = document.getElementById("ml_zone");
+      if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+}
+}
+" >Get Data</button>
         </form>
-</div>
+
 </br>
 </br>
 
@@ -36,6 +47,13 @@
 
 <div id='ma_chart' class='chart'”></div>
 
+<div id="ml_zone" >
+    <button type="submit" class = "predict">Run Prediction</button>
+</div>
+
+
+
+</div>
 </body>
 
 <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
@@ -56,6 +74,9 @@
   var graphs = {{ maJSON | safe }};
   Plotly.plot('ma_chart',graphs,{});
 </script>
+
+
+
 
 
 </html>
