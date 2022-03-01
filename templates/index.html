@@ -29,5 +29,15 @@
 {% if ticker %}
 <h2>{{ticker}}</h2>
 {%endif%}
+
+<div id='chart' class='chart'”></div>
+
 </body>
+
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var graphs = {{ priceJSON | safe }};
+  Plotly.plot('chart',graphs,{});
+</script>
+
 </html>
