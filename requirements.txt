@@ -61,9 +61,9 @@ websockets==10.2
 Werkzeug==2.0.3
 wrapt==1.13.3
 zipp==3.7.0
-
 matplotlib~=3.5.1
 plotly~=5.6.0
 tqdm~=4.63.0
 ipywidgets~=7.6.5
 ipython~=8.1.0
+yfinance~=0.1.70
