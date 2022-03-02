@@ -189,8 +189,11 @@ def predict():
     # Puts the history into a dataframe
     history_df = pd.DataFrame(history)
 
+    # Variable to control the forecast length
+    f_len = 10
+
     # Create a 30 day rolling forecat
-    for i in tqdm(range(10)):
+    for i in tqdm(range(f_len)):
         # Runs and fits the ARIMA model with the specified order
 
         model = ARIMA(history, order=(2, 0, 3))
@@ -215,14 +218,14 @@ def predict():
     #print(price_data_trunc.info())
 
     pred_df = pd.DataFrame(predictions)
-    pred_df.index = pred_df.index + len(history) - 30
+    pred_df.index = pred_df.index + len(history) - f_len
 
     # Setting up the moving average figure
     pred_fig = go.Figure()
 
     pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
     pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
-
+    pred_fig.update_xaxes(range=[len(history)-60, len(history)])
     title = "30-Day Price Forecast"
     pred_fig.update_layout(title_text=title)
     predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
