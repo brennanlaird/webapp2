@@ -182,10 +182,14 @@ def predict():
     # print(price_data.head())
     # print(price_data.info())
 
-    price_data_trunc = price_data.iloc[10:]
+    price_data_trunc = pd.DataFrame(price_data.iloc[10:])
 
     predictions = []
     history = price_data_trunc[0:len(price_data_trunc)]
+
+    print(price_data_trunc.head())
+    print(price_data_trunc.info())
+
 
     # Puts the EMA prices into a list
     history = [i for i in price_data_trunc['EMA_10']]
