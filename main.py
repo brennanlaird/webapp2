@@ -177,7 +177,11 @@ def predict():
     ml_text = "Model results display here"
     global price_data
     # Adds the exponential moving average to the data set and then truncates
-    price_data.ta.ema(close='Close', length=10, append=True)
+    price_data.ta.ema(length=10, append=True)
+
+    # print(price_data.head())
+    # print(price_data.info())
+
     price_data_trunc = price_data.iloc[10:]
 
     predictions = []
