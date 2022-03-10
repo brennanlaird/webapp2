@@ -73,13 +73,20 @@ def make_prediction(price_data_trunc):
     # print(price_data_trunc.head())
     # print(price_data_trunc.info())
 
+    #Sets up the min and max values for the y-axis
+    min_y = min(history[len(history) - 60: len(history)]) * 0.95
+    max_y = max(history[len(history) - 60: len(history)]) * 1.05
+    print(min_y)
+    print(max_y)
+
     pred_df = pd.DataFrame(predictions)
     pred_df.index = pred_df.index + len(history) - f_len
     pred_fig = go.Figure()
 
-    pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
-    pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
+    pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0]), name="Price"))
+    pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0]), name="Prediction"))
     pred_fig.update_xaxes(range=[len(history) - 60, len(history)])
+    pred_fig.update_yaxes(range=[min_y, max_y])
     title = "30-Day Price Forecast"
     pred_fig.update_layout(title_text=title)
     predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
