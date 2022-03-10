@@ -31,7 +31,7 @@ celery.conf.update(app.config)
 def make_prediction(price_data_trunc):
     # The code to run the ML prediction
     print('The celery function worked')
-
+    print(price_data_trunc.info())
 
     predictions = []
     history = price_data_trunc[0:len(price_data_trunc)]
@@ -263,7 +263,8 @@ def get_data():
     maJSON = json.dumps(ma_fig, cls=plotly.utils.PlotlyJSONEncoder)
 
     # print(price_data.head())
-    # print(price_data.info())
+    print('Get data finished')
+    print(price_data.info())
     return render_template("index.html", ticker=ticker, stock_list=stock_list, priceJSON=priceJSON, volJSON=volJSON,
                            maJSON=maJSON)
 
@@ -279,6 +280,15 @@ def predict():
     # print(price_data.info())
 
     price_data_trunc = pd.DataFrame(price_data.iloc[10:])
+
+    print('Price Data Head')
+    print(price_data.head())
+    print('Price Data Truncated Head')
+    print(price_data_trunc.head())
+    print('Price Data Info')
+    print(price_data.tail())
+    print('Price Data Truncated Info')
+    print(price_data_trunc.tail())
 
     predJSON = make_prediction(price_data_trunc)
 
