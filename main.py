@@ -73,7 +73,7 @@ def make_prediction(price_data_trunc):
     # print(price_data_trunc.head())
     # print(price_data_trunc.info())
 
-    #Sets up the min and max values for the y-axis
+    # Sets up the min and max values for the y-axis
     min_y = min(history[len(history) - 60: len(history)]) * 0.95
     max_y = max(history[len(history) - 60: len(history)]) * 1.05
     print(min_y)
@@ -91,6 +91,7 @@ def make_prediction(price_data_trunc):
     pred_fig.update_layout(title_text=title)
     predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
     return predJSON
+
 
 # Celery function to handle the background work associated with the ML model
 # Taken from the celery documentation
@@ -113,14 +114,12 @@ def make_prediction(price_data_trunc):
 
 # Initialize an empy data frame outside functions
 
-price_data = pd.DataFrame()
+
 
 
 # @ is a decorator - a way to wrap a function and modify its behavior
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
-
     if request.method == 'POST':
         ticker = request.form['stock']
     return render_template("index.html", stock_list=stock_list)
@@ -129,11 +128,8 @@ def index():
 @app.route('/get_data', methods=['GET', 'POST'])
 def get_data():
     ticker = request.form['stock']
-    global price_data
-    stock_obj = yf.Ticker(ticker)
-    price_data = stock_obj.history(period='1y')
-    price_data = price_data.drop('Dividends', 1)
-    price_data = price_data.drop('Stock Splits', 1)
+    price_data = pd.DataFrame()
+    price_data = get_prices(ticker)
 
     # Adding the 50-day and 200-day moving averages to the dataframe
     price_data['50dayMA'] = price_data.Close.rolling(50).mean()
@@ -263,8 +259,9 @@ def get_data():
     volJSON = json.dumps(vol_fig, cls=plotly.utils.PlotlyJSONEncoder)
     maJSON = json.dumps(ma_fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # print(price_data.head())
-    print('Get data finished')
+
+
+    print('Get data finished. Price Data info is next')
     print(price_data.info())
     return render_template("index.html", ticker=ticker, stock_list=stock_list, priceJSON=priceJSON, volJSON=volJSON,
                            maJSON=maJSON)
@@ -274,16 +271,12 @@ def get_data():
 def predict():
     ml_text = "Model results display here"
 
-    print('Price Data Head')
-    print(price_data.head())
-    # print('Price Data Truncated Head')
-    # print(price_data_trunc.head())
-    print('Price Data Info')
-    print(price_data.info())
-    # print('Price Data Truncated Info')
-    # print(price_data_trunc.info())
+    ticker = "TSLA"
+    price_data = pd.DataFrame()
+    price_data = get_prices(ticker)
 
-    global price_data
+
+
     # Adds the exponential moving average to the data set and then truncates
     price_data.ta.ema(length=10, append=True)
 
@@ -292,11 +285,16 @@ def predict():
 
     price_data_trunc = pd.DataFrame(price_data.iloc[10:])
 
-
+    print('Price Data Head')
+    print(price_data.head())
+    print('Price Data Truncated Head')
+    print(price_data_trunc.head())
+    print('Price Data Info')
+    print(price_data.info())
+    print('Price Data Truncated Info')
+    print(price_data_trunc.info())
 
     predJSON = make_prediction(price_data_trunc)
-
-
 
     # predictions = []
     # history = price_data_trunc[0:len(price_data_trunc)]
@@ -353,7 +351,14 @@ def predict():
     return render_template("index.html", ml_text=ml_text, predJSON=predJSON)
 
 
+def get_prices(ticker):
+    stock_obj = yf.Ticker(ticker)
+    prices = pd.DataFrame
+    prices = stock_obj.history(period='1y')
+    prices = prices.drop('Dividends', 1)
+    prices = prices.drop('Stock Splits', 1)
+    return prices
+
+
 if __name__ == '__main__':
     app.run()
-
-
