@@ -7,13 +7,102 @@ import plotly.graph_objects as go
 import pandas_ta as ta
 import warnings
 from statsmodels.tsa.arima.model import ARIMA
-
+from celery import Celery
 from tqdm import tqdm
 
 warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
+
+# Set the list of supported stocks
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
+
+# Celery configurations
+# from Miguel Grinberg blog
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+
+# Initialize Celery
+celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+celery.conf.update(app.config)
+
+
+@celery.task()
+def make_prediction(price_data_trunc):
+    # The code to run the ML prediction
+    print('The celery function worked')
+
+
+    predictions = []
+    history = price_data_trunc[0:len(price_data_trunc)]
+
+    # print(price_data_trunc.head())
+    # print(price_data_trunc.info())
+
+    # Puts the EMA prices into a list
+    history = [i for i in price_data_trunc['EMA_10']]
+
+    # Puts the history into a dataframe
+    history_df = pd.DataFrame(history)
+
+    # Variable to control the forecast length
+    f_len = 30
+
+    # Create a 30 day rolling forecat
+    for i in tqdm(range(f_len)):
+        # Runs and fits the ARIMA model with the specified order
+
+        model = ARIMA(history, order=(2, 0, 3))
+        model_fit = model.fit()
+
+        # Uses the forecast method to predict a single future timestep
+        next_forecast = model_fit.forecast()
+
+        # Gets the value of the next prediction
+        next_pred = next_forecast[0]
+
+        # pd.concat(history,next_forecast)
+        history.append(next_pred)
+        predictions.append(next_pred)
+
+        # print("Loop ", i, " prediction : ", next_pred)
+
+    # print(price_data.head())
+    # print(price_data.info())
+    #
+    # print(price_data_trunc.head())
+    # print(price_data_trunc.info())
+
+    pred_df = pd.DataFrame(predictions)
+    pred_df.index = pred_df.index + len(history) - f_len
+    pred_fig = go.Figure()
+
+    pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
+    pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
+    pred_fig.update_xaxes(range=[len(history) - 60, len(history)])
+    title = "30-Day Price Forecast"
+    pred_fig.update_layout(title_text=title)
+    predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
+    return predJSON
+
+# Celery function to handle the background work associated with the ML model
+# Taken from the celery documentation
+# def make_celery(celery_app):
+#     celery = Celery(
+#         celery_app.import_name,
+#         backend=celery_app.config['CELERY_RESULT_BACKEND'],
+#         broker=celery_app.config['CELERY_BROKER_URL']
+#     )
+#     celery.conf.update(celery_app.config)
+#
+#     class ContextTask(celery.Task):
+#         def __call__(self, *args, **kwargs):
+#             with celery_app.app_context():
+#                 return self.run(*args, **kwargs)
+#
+#     celery.Task = ContextTask
+#     return celery
+
 
 # Initialize an empy data frame outside functions
 price_data = pd.DataFrame()
@@ -184,59 +273,62 @@ def predict():
 
     price_data_trunc = pd.DataFrame(price_data.iloc[10:])
 
-    predictions = []
-    history = price_data_trunc[0:len(price_data_trunc)]
-
-    print(price_data_trunc.head())
-    print(price_data_trunc.info())
+    predJSON = make_prediction(price_data_trunc)
 
 
-    # Puts the EMA prices into a list
-    history = [i for i in price_data_trunc['EMA_10']]
 
-    # Puts the history into a dataframe
-    history_df = pd.DataFrame(history)
-
-    # Variable to control the forecast length
-    f_len = 10
-
-    # Create a 30 day rolling forecat
-    for i in tqdm(range(f_len)):
-        # Runs and fits the ARIMA model with the specified order
-
-        model = ARIMA(history, order=(2, 0, 3))
-        model_fit = model.fit()
-
-        # Uses the forecast method to predict a single future timestep
-        next_forecast = model_fit.forecast()
-
-        # Gets the value of the next prediction
-        next_pred = next_forecast[0]
-
-        # pd.concat(history,next_forecast)
-        history.append(next_pred)
-        predictions.append(next_pred)
-
-        # print("Loop ", i, " prediction : ", next_pred)
-
-    # print(price_data.head())
-    # print(price_data.info())
+    # predictions = []
+    # history = price_data_trunc[0:len(price_data_trunc)]
     #
-    # print(price_data_trunc.head())
-    #print(price_data_trunc.info())
-
-    pred_df = pd.DataFrame(predictions)
-    pred_df.index = pred_df.index + len(history) - f_len
+    # #print(price_data_trunc.head())
+    # #print(price_data_trunc.info())
+    #
+    # # Puts the EMA prices into a list
+    # history = [i for i in price_data_trunc['EMA_10']]
+    #
+    # # Puts the history into a dataframe
+    # history_df = pd.DataFrame(history)
+    #
+    # # Variable to control the forecast length
+    # f_len = 5
+    #
+    # # Create a 30 day rolling forecat
+    # for i in tqdm(range(f_len)):
+    #     # Runs and fits the ARIMA model with the specified order
+    #
+    #     model = ARIMA(history, order=(2, 0, 3))
+    #     model_fit = model.fit()
+    #
+    #     # Uses the forecast method to predict a single future timestep
+    #     next_forecast = model_fit.forecast()
+    #
+    #     # Gets the value of the next prediction
+    #     next_pred = next_forecast[0]
+    #
+    #     # pd.concat(history,next_forecast)
+    #     history.append(next_pred)
+    #     predictions.append(next_pred)
+    #
+    #     # print("Loop ", i, " prediction : ", next_pred)
+    #
+    # # print(price_data.head())
+    # # print(price_data.info())
+    # #
+    # # print(price_data_trunc.head())
+    # # print(price_data_trunc.info())
+    #
+    # pred_df = pd.DataFrame(predictions)
+    # pred_df.index = pred_df.index + len(history) - f_len
 
     # Setting up the moving average figure
-    pred_fig = go.Figure()
-
-    pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
-    pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
-    pred_fig.update_xaxes(range=[len(history)-60, len(history)])
-    title = "30-Day Price Forecast"
-    pred_fig.update_layout(title_text=title)
-    predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
+    # pred_fig = go.Figure()
+    #
+    # pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
+    # pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
+    # pred_fig.update_xaxes(range=[len(history) - 60, len(history)])
+    # title = "30-Day Price Forecast"
+    # pred_fig.update_layout(title_text=title)
+    # predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
     return render_template("index.html", ml_text=ml_text, predJSON=predJSON)
 
 
@@ -244,5 +336,3 @@ if __name__ == '__main__':
     app.run()
 
 
-def store_data():
-    return ()

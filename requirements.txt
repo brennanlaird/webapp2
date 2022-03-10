@@ -65,3 +65,4 @@ tqdm~=4.63.0
 ipywidgets~=7.6.5
 ipython~=8.1.0
 yfinance~=0.1.70
+celery~=5.2.3
