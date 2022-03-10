@@ -112,13 +112,14 @@ def make_prediction(price_data_trunc):
 
 
 # Initialize an empy data frame outside functions
+
 price_data = pd.DataFrame()
 
 
 # @ is a decorator - a way to wrap a function and modify its behavior
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
+    # stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
 
     if request.method == 'POST':
         ticker = request.form['stock']
@@ -272,6 +273,16 @@ def get_data():
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
     ml_text = "Model results display here"
+
+    print('Price Data Head')
+    print(price_data.head())
+    # print('Price Data Truncated Head')
+    # print(price_data_trunc.head())
+    print('Price Data Info')
+    print(price_data.info())
+    # print('Price Data Truncated Info')
+    # print(price_data_trunc.info())
+
     global price_data
     # Adds the exponential moving average to the data set and then truncates
     price_data.ta.ema(length=10, append=True)
@@ -281,14 +292,7 @@ def predict():
 
     price_data_trunc = pd.DataFrame(price_data.iloc[10:])
 
-    print('Price Data Head')
-    print(price_data.head())
-    print('Price Data Truncated Head')
-    print(price_data_trunc.head())
-    print('Price Data Info')
-    print(price_data.tail())
-    print('Price Data Truncated Info')
-    print(price_data_trunc.tail())
+
 
     predJSON = make_prediction(price_data_trunc)
 
