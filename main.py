@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session, redirect, url_for
 import pandas as pd
 import yfinance as yf
 import json
@@ -15,6 +15,9 @@ warnings.filterwarnings("ignore")
 
 # Sets up a Flask object
 app = Flask(__name__)
+
+# Sets the secret key for sessions. THIS SHOULD BE KEPT SECRET!
+app.secret_key = 'thesecretkeyissecret'
 
 # Set the list of supported stocks
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
@@ -90,17 +93,41 @@ def make_prediction(price_data_trunc):
     return predJSON
 
 
+# The login function
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    # Initialize the login error to None
+    login_error = None
+
+    # runs the login procedures if the post method is used
+    if request.method == 'POST':
+        # Sets the username based on the form
+        username = request.form.get('username')
+
+        # Detects if the username and password match the values required
+        if request.form['username'] != 'dfadmin' or request.form['password'] != 'dfadmin':
+            # If the values do not match, change the login error and retunr the login page to display the error
+            login_error = "Login Error. Try again."
+            return render_template('login.html', login_error=login_error)
+        else:
+            # If login is successful set the username as the active name for the session
+            session['user'] = username
+            # redirects to the main page on successful login
+            return redirect(url_for('index'))
+    return render_template('login.html', login_error=login_error)
+
+
 # @ is a decorator - a way to wrap a function and modify its behavior
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 def index():
-    # Sets up the initial call by returning the HTML file
-    if request.method == 'POST':
-        ticker = request.form['stock']
-
-    # Sets the prediction button not to display
-    display_status = 'hidden'
-    return render_template("index.html", stock_list=stock_list, display_status=display_status)
-
+    # If the user has successfully logged in then proceed to the main page
+    if 'user' in session:
+        # Sets the prediction button not to display
+        display_status = 'hidden'
+        return render_template("index.html", stock_list=stock_list, display_status=display_status)
+    # If the user is not in the session then the user has not logged in and is redirected to the login page
+    return redirect(url_for('login'))
 
 # Function that runs when the get data button is pushed.
 @app.route('/get_data', methods=['GET', 'POST'])
@@ -261,7 +288,6 @@ def get_data():
 # Function that runs whenever the Run prediction button is pressed
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-
     # Get the value of the global ticker
     global ticker_global
     ticker = ticker_global

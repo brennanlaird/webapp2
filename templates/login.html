@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>DFF Login</title>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>DF Financial</h1>
+        <h2>Please enter your user id and password</h2>
+    </div>
+
+    <div style="text-align: center"; class="container">
+    </br>
+        <form action="" method="post">
+        <input type="text" placeholder="Username" name="username" value="{{ request.form.username }}">
+            <input type="password" placeholder="Password" name="password" value="{{ request.form.password }}">
+        <input class="btn btn-default" type="submit" value="Login">
+
+      </form>
+        </br>
+      {% if login_error %}
+        <p class="error"><strong>Error:</strong> {{ login_error }}
+      {% endif %}
+
+
+
+    </div>
+</body>
+
+
+</html>
