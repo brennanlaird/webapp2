@@ -10,15 +10,19 @@ from statsmodels.tsa.arima.model import ARIMA
 from celery import Celery
 from tqdm import tqdm
 
+# Filters out warnings related to future versions of the pandas library
 warnings.filterwarnings("ignore")
 
+# Sets up a Flask object
 app = Flask(__name__)
 
 # Set the list of supported stocks
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
 
+# Sets a global ticker string to store the ticker symbol between functions
+ticker_global = ""
+
 # Celery configurations
-# from Miguel Grinberg blog
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
@@ -27,17 +31,14 @@ celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
 
 
+# The celery task runs as a background task to make the predictions
 @celery.task()
 def make_prediction(price_data_trunc):
-    # The code to run the ML prediction
-    print('The celery function worked')
-    print(price_data_trunc.info())
-
+    # Set a blank predictions list to store the predictions made
     predictions = []
-    history = price_data_trunc[0:len(price_data_trunc)]
 
-    # print(price_data_trunc.head())
-    # print(price_data_trunc.info())
+    # Sets up a history list to store the price history and the predictions together
+    history = price_data_trunc[0:len(price_data_trunc)]
 
     # Puts the EMA prices into a list
     history = [i for i in price_data_trunc['EMA_10']]
@@ -48,39 +49,33 @@ def make_prediction(price_data_trunc):
     # Variable to control the forecast length
     f_len = 30
 
-    # Create a 30 day rolling forecat
+    # Create a rolling forecast based on the f_len variable
     for i in tqdm(range(f_len)):
         # Runs and fits the ARIMA model with the specified order
-
         model = ARIMA(history, order=(2, 0, 3))
         model_fit = model.fit()
 
-        # Uses the forecast method to predict a single future timestep
+        # Uses the forecast method to predict a single future time step
         next_forecast = model_fit.forecast()
 
         # Gets the value of the next prediction
         next_pred = next_forecast[0]
 
-        # pd.concat(history,next_forecast)
+        # Appends the forecast to the history and predictions list objects
         history.append(next_pred)
         predictions.append(next_pred)
 
-        # print("Loop ", i, " prediction : ", next_pred)
-
-    # print(price_data.head())
-    # print(price_data.info())
-    #
-    # print(price_data_trunc.head())
-    # print(price_data_trunc.info())
-
-    # Sets up the min and max values for the y-axis
+    # Sets up the min and max values for the y-axis of the prediction graph
     min_y = min(history[len(history) - 60: len(history)]) * 0.95
     max_y = max(history[len(history) - 60: len(history)]) * 1.05
-    print(min_y)
-    print(max_y)
 
+    # Creates a data frame object from the predictions list
     pred_df = pd.DataFrame(predictions)
+
+    # Indexes the prediction data frame, so it can be graphed on the same scale as the history.
     pred_df.index = pred_df.index + len(history) - f_len
+
+    # Creates the graph of the predictions and history on the same plat
     pred_fig = go.Figure()
 
     pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0]), name="Price"))
@@ -89,47 +84,39 @@ def make_prediction(price_data_trunc):
     pred_fig.update_yaxes(range=[min_y, max_y])
     title = "30-Day Price Forecast"
     pred_fig.update_layout(title_text=title)
+
+    # Creates the javascript object of the graph and returns it to the calling function
     predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
     return predJSON
-
-
-# Celery function to handle the background work associated with the ML model
-# Taken from the celery documentation
-# def make_celery(celery_app):
-#     celery = Celery(
-#         celery_app.import_name,
-#         backend=celery_app.config['CELERY_RESULT_BACKEND'],
-#         broker=celery_app.config['CELERY_BROKER_URL']
-#     )
-#     celery.conf.update(celery_app.config)
-#
-#     class ContextTask(celery.Task):
-#         def __call__(self, *args, **kwargs):
-#             with celery_app.app_context():
-#                 return self.run(*args, **kwargs)
-#
-#     celery.Task = ContextTask
-#     return celery
-
-
-# Initialize an empy data frame outside functions
-
-
 
 
 # @ is a decorator - a way to wrap a function and modify its behavior
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    # Sets up the initial call by returning the HTML file
     if request.method == 'POST':
         ticker = request.form['stock']
-    return render_template("index.html", stock_list=stock_list)
+
+    # Sets the prediction button not to display
+    display_status = 'hidden'
+    return render_template("index.html", stock_list=stock_list, display_status=display_status)
 
 
+# Function that runs when the get data button is pushed.
 @app.route('/get_data', methods=['GET', 'POST'])
 def get_data():
+    # Gets the ticker symbol from the web form
     ticker = request.form['stock']
+
+    # Sets up an empty data frame to store price data
     price_data = pd.DataFrame()
-    price_data = get_prices(ticker)
+
+    # Runs the get prices function with the selected ticker to populates the price data DF
+    price_data = get_prices(ticker, 'max')
+
+    # Sets the global ticker value to the selected ticker.
+    global ticker_global
+    ticker_global = ticker
 
     # Adding the 50-day and 200-day moving averages to the dataframe
     price_data['50dayMA'] = price_data.Close.rolling(50).mean()
@@ -138,8 +125,10 @@ def get_data():
     # Setting up the price graph
     price_fig = go.Figure()
 
+    # Sets the column from the DF to graph
     price_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['Close'])))
 
+    # Sets the title of the graph
     title = ticker + " Price"
     price_fig.update_layout(title_text=title)
 
@@ -177,8 +166,10 @@ def get_data():
     # Setting up the volume graph
     vol_fig = go.Figure()
 
+    # Sets the trace from the DF to add to the graph
     vol_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['Volume'])))
 
+    # Sets the title of the volume graph
     title = ticker + " Volume"
     vol_fig.update_layout(title_text=title)
 
@@ -216,10 +207,12 @@ def get_data():
     # Setting up the moving average figure
     ma_fig = go.Figure()
 
-    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['Close'])))
-    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['50dayMA'])))
-    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['200dayMA'])))
+    # Sets the traces from the DF to add to the graph and adds their names for the legend
+    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['Close']), name="Closing Price"))
+    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['50dayMA']), name="50-Day MA"))
+    ma_fig.add_trace(go.Scatter(x=list(price_data.index), y=list(price_data['200dayMA']), name="200-Day MA"))
 
+    # Adds the title for the moving average graphs
     title = ticker + " Moving Averages"
     ma_fig.update_layout(title_text=title)
 
@@ -259,106 +252,62 @@ def get_data():
     volJSON = json.dumps(vol_fig, cls=plotly.utils.PlotlyJSONEncoder)
     maJSON = json.dumps(ma_fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-
-
-    print('Get data finished. Price Data info is next')
-    print(price_data.info())
+    # Set the prediction button to be visible
+    display_status = 'visible'
     return render_template("index.html", ticker=ticker, stock_list=stock_list, priceJSON=priceJSON, volJSON=volJSON,
-                           maJSON=maJSON)
+                           maJSON=maJSON, display_status=display_status)
 
 
+# Function that runs whenever the Run prediction button is pressed
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    ml_text = "Model results display here"
 
-    ticker = "TSLA"
+    # Get the value of the global ticker
+    global ticker_global
+    ticker = ticker_global
+
+    # Sets the text to display on the webpage
+    ml_text = ticker + " 30-Day Price Forecast"
+
+    # Sets up an empty data frame to store price data
     price_data = pd.DataFrame()
-    price_data = get_prices(ticker)
 
+    # Runs the get prices function with the selected ticker to populates the price data DF
+    price_data = get_prices(ticker, '1y')
 
-
-    # Adds the exponential moving average to the data set and then truncates
+    # Adds the exponential moving average to the data set and then truncates to remove NULL values
     price_data.ta.ema(length=10, append=True)
-
-    # print(price_data.head())
-    # print(price_data.info())
-
     price_data_trunc = pd.DataFrame(price_data.iloc[10:])
 
-    print('Price Data Head')
-    print(price_data.head())
-    print('Price Data Truncated Head')
-    print(price_data_trunc.head())
-    print('Price Data Info')
-    print(price_data.info())
-    print('Price Data Truncated Info')
-    print(price_data_trunc.info())
-
+    # Uses the make prediction function by passing the truncated price data. A javascript graph object is returned
     predJSON = make_prediction(price_data_trunc)
 
-    # predictions = []
-    # history = price_data_trunc[0:len(price_data_trunc)]
-    #
-    # #print(price_data_trunc.head())
-    # #print(price_data_trunc.info())
-    #
-    # # Puts the EMA prices into a list
-    # history = [i for i in price_data_trunc['EMA_10']]
-    #
-    # # Puts the history into a dataframe
-    # history_df = pd.DataFrame(history)
-    #
-    # # Variable to control the forecast length
-    # f_len = 5
-    #
-    # # Create a 30 day rolling forecat
-    # for i in tqdm(range(f_len)):
-    #     # Runs and fits the ARIMA model with the specified order
-    #
-    #     model = ARIMA(history, order=(2, 0, 3))
-    #     model_fit = model.fit()
-    #
-    #     # Uses the forecast method to predict a single future timestep
-    #     next_forecast = model_fit.forecast()
-    #
-    #     # Gets the value of the next prediction
-    #     next_pred = next_forecast[0]
-    #
-    #     # pd.concat(history,next_forecast)
-    #     history.append(next_pred)
-    #     predictions.append(next_pred)
-    #
-    #     # print("Loop ", i, " prediction : ", next_pred)
-    #
-    # # print(price_data.head())
-    # # print(price_data.info())
-    # #
-    # # print(price_data_trunc.head())
-    # # print(price_data_trunc.info())
-    #
-    # pred_df = pd.DataFrame(predictions)
-    # pred_df.index = pred_df.index + len(history) - f_len
+    # Set the prediction button to be hidden
+    display_status = 'hidden'
 
-    # Setting up the moving average figure
-    # pred_fig = go.Figure()
-    #
-    # pred_fig.add_trace(go.Scatter(x=list(history_df.index), y=list(history_df[0])))
-    # pred_fig.add_trace(go.Scatter(x=list(pred_df.index), y=list(pred_df[0])))
-    # pred_fig.update_xaxes(range=[len(history) - 60, len(history)])
-    # title = "30-Day Price Forecast"
-    # pred_fig.update_layout(title_text=title)
-    # predJSON = json.dumps(pred_fig, cls=plotly.utils.PlotlyJSONEncoder)
-    return render_template("index.html", ml_text=ml_text, predJSON=predJSON)
+    return render_template("index.html", ml_text=ml_text, predJSON=predJSON, ticker=ticker, stock_list=stock_list,
+                           display_status=display_status)
 
 
-def get_prices(ticker):
+# Function to retrieve stock price info using the yfinance library
+def get_prices(ticker, time):
+    # Creates a stock object by retrieving information based on the ticker passed into the function
     stock_obj = yf.Ticker(ticker)
+
+    # Sets up a blank data frame to store price data
     prices = pd.DataFrame
-    prices = stock_obj.history(period='1y')
+
+    # Puts the price history for the defined period into the prices DF
+    prices = stock_obj.history(period=time)
+
+    # Drop the Dividends and Stock Splits columns as they are not used
     prices = prices.drop('Dividends', 1)
     prices = prices.drop('Stock Splits', 1)
+
+    # Return the prices data frame
     return prices
 
 
+# Runs the main Flask app
 if __name__ == '__main__':
     app.run()

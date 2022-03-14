@@ -14,6 +14,7 @@
 
 <form action="/get_data" method="post">
 
+
 <select name="stock">
     {% for stock in stock_list %}
         <option value="{{ stock }}"  SELECTED>
@@ -32,7 +33,8 @@
 }
 }
 " >Get Data</button>
-        </form>
+
+</form>
 
 </br>
 </br>
@@ -50,7 +52,7 @@
 
 <div id="ml_zone" >
     <form action="/predict" method="post">
-    <button type="submit" class = "predict">Run Prediction</button>
+    <button type="submit" class = "predict" style="visibility: {{display_status}} ;">Run Prediction</button>
     </form>
     </br>
     {% if ml_text %}
