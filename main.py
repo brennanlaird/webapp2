@@ -22,9 +22,6 @@ app.secret_key = 'thesecretkeyissecret'
 # Set the list of supported stocks
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
 
-# Sets a global ticker string to store the ticker symbol between functions
-ticker_global = ""
-
 # Celery configurations
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
@@ -141,10 +138,8 @@ def get_data():
     # Runs the get prices function with the selected ticker to populates the price data DF
     price_data = get_prices(ticker, 'max')
 
-    # Sets the global ticker value to the selected ticker.
-    global ticker_global
-    ticker_global = ticker
-
+    # Sets the ticker selected to a session variable. This allows the value to persist between functions
+    session['ticker'] = ticker
     # Adding the 50-day and 200-day moving averages to the dataframe
     price_data['50dayMA'] = price_data.Close.rolling(50).mean()
     price_data['200dayMA'] = price_data.Close.rolling(200).mean()
@@ -288,9 +283,8 @@ def get_data():
 # Function that runs whenever the Run prediction button is pressed
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    # Get the value of the global ticker
-    global ticker_global
-    ticker = ticker_global
+    # Get the value of the session ticker
+    ticker = session['ticker']
 
     # Sets the text to display on the webpage
     ml_text = ticker + " 30-Day Price Forecast"
