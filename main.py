@@ -1,3 +1,4 @@
+import numpy as np
 from flask import Flask, render_template, request, session, redirect, url_for
 import pandas as pd
 import yfinance as yf
@@ -6,6 +7,8 @@ import plotly
 import plotly.graph_objects as go
 import pandas_ta as ta
 import warnings
+
+from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.arima.model import ARIMA
 from tqdm import tqdm
 
