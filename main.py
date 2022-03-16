@@ -7,7 +7,6 @@ import plotly.graph_objects as go
 import pandas_ta as ta
 import warnings
 from statsmodels.tsa.arima.model import ARIMA
-from celery import Celery
 from tqdm import tqdm
 
 # Filters out warnings related to future versions of the pandas library
@@ -22,17 +21,7 @@ app.secret_key = 'thesecretkeyissecret'
 # Set the list of supported stocks
 stock_list = ['AAPL', 'GME', 'MSFT', 'TSLA']
 
-# Celery configurations
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
-# Initialize Celery
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(app.config)
-
-
-# The celery task runs as a background task to make the predictions
-@celery.task()
 def make_prediction(price_data_trunc):
     # Set a blank predictions list to store the predictions made
     predictions = []
