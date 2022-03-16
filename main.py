@@ -52,7 +52,7 @@ def make_prediction(price_data_trunc):
     # Create a rolling forecast based on the f_len variable
     for i in tqdm(range(f_len)):
         # Runs and fits the ARIMA model with the specified order
-        model = ARIMA(history, order=(2, 0, 3))
+        model = ARIMA(history, order=(2, 0, 1))
         model_fit = model.fit()
 
         # Uses the forecast method to predict a single future time step
